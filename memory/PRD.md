@@ -25,7 +25,7 @@ depois como app desktop Windows (Electron).
 - Estoque (entrada/saída/ajuste + histórico + alerta de mínimo)
 - Caixa (abertura, movimentações Entrada/Saída/Sangria/Reforço, fechamento com esperado/informado/diferença, bloqueio após fechar)
 - Despesas por categoria
-- Relatórios (financeiro, barbeiros, clientes, serviços, produtos) com filtro de período, impressão e export CSV
+- Relatórios (financeiro, barbeiros, clientes, serviços, produtos) com filtro de período, impressão, export CSV e **export PDF** (cabeçalho com nome/CNPJ/telefone/endereço e logo da barbearia; PDF completo ou por seção)
 - Backup: gerar (`backup_DD-MM-AAAA_HH-MM-SS.db`), restaurar com confirmação e cópia de segurança prévia, pasta de destino, flag de automático
 - Configurações da barbearia + usuários + senhas
 - Dados de demonstração (3 barbeiros, 6 serviços, 4 clientes, 6 produtos, 2 pacotes, agendamentos)
@@ -35,7 +35,6 @@ Iteration 1: 44/44 checks (26 pytest backend + 18 Playwright) — 100% backend e
 
 ## Backlog
 - P1: geração real do `BarberPro_Setup.exe` (PyInstaller + electron-builder em máquina Windows)
-- P1: export PDF dos relatórios (hoje apenas CSV + impressão)
 - P2: backup automático agendado (hoje apenas preferência salva)
 - P2: impressão de comprovante do atendimento; split de pagamento em múltiplas formas
 - P2: dividir `server.py` em routers

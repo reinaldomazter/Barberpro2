@@ -766,6 +766,121 @@ def get_relatorio_csv(tipo: str, inicio: str, fim: str, secao: Optional[str] = N
                              headers={"Content-Disposition": f'attachment; filename="{tipo}_{key}_{inicio}_{fim}.csv"'})
 
 
+SECAO_TITULOS = {
+    "diario": "Faturamento diário", "mensal": "Faturamento mensal", "despesas": "Despesas por categoria",
+    "barbeiros": "Desempenho dos barbeiros", "cadastrados": "Clientes cadastrados no período",
+    "mais_gastam": "Clientes que mais gastam", "inativos": "Clientes sem retorno (30+ dias)",
+    "servicos": "Serviços mais vendidos", "vendidos": "Produtos vendidos/consumidos",
+    "estoque": "Estoque atual", "abaixo_minimo": "Produtos abaixo do estoque mínimo",
+}
+MOEDA_COLS = {"faturamento", "valor", "total", "comissao", "preco", "despesas", "lucro"}
+
+
+def fmt_valor(col, v):
+    if v is None:
+        return "—"
+    if col in MOEDA_COLS and isinstance(v, (int, float)):
+        return "R$ " + f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return str(v)
+
+
+@api.get("/relatorios/{tipo}/pdf")
+def get_relatorio_pdf(tipo: str, inicio: str, fim: str, secao: Optional[str] = None, user=Depends(get_current_user)):
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    dados = relatorio_data(tipo, inicio, fim)
+    conn = get_conn()
+    conf = {r["chave"]: r["valor"] for r in conn.execute("SELECT * FROM configuracoes")}
+    conn.close()
+
+    secoes = [secao] if secao and secao in dados else [k for k in dados if isinstance(dados[k], list)]
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), topMargin=14 * mm, bottomMargin=14 * mm,
+                            leftMargin=14 * mm, rightMargin=14 * mm, title=f"Relatório {tipo}")
+    ss = getSampleStyleSheet()
+    h_style = ParagraphStyle("h", parent=ss["Title"], fontSize=16, alignment=0, spaceAfter=2)
+    sub = ParagraphStyle("sub", parent=ss["Normal"], fontSize=9, textColor=colors.HexColor("#666666"))
+    sec = ParagraphStyle("sec", parent=ss["Heading3"], fontSize=11, spaceBefore=10, spaceAfter=4)
+
+    cab = [Paragraph(conf.get("nome_barbearia") or "BarberPro", h_style),
+           Paragraph("BarberPro — Sistema de Gestão", sub)]
+    linha2 = " · ".join([x for x in [conf.get("cnpj") and f"CNPJ {conf['cnpj']}", conf.get("telefone"),
+                                     conf.get("endereco")] if x])
+    if linha2:
+        cab.append(Paragraph(linha2, sub))
+    cab.append(Paragraph(
+        f"Relatório: <b>{tipo.capitalize()}</b> · Período: "
+        f"{datetime.strptime(inicio, '%Y-%m-%d').strftime('%d/%m/%Y')} a "
+        f"{datetime.strptime(fim, '%Y-%m-%d').strftime('%d/%m/%Y')} · Emitido em "
+        f"{datetime.now().strftime('%d/%m/%Y %H:%M')}", sub))
+
+    logo_path = conf.get("logo") or ""
+    logo_cell = ""
+    if logo_path and not logo_path.startswith("http") and Path(logo_path).exists():
+        try:
+            logo_cell = Image(logo_path, width=28 * mm, height=28 * mm, kind="proportional")
+        except Exception:
+            logo_cell = ""
+
+    header = Table([[cab, logo_cell]], colWidths=[None, 32 * mm])
+    header.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+        ("LINEBELOW", (0, 0), (-1, 0), 1, colors.HexColor("#D4AF37")),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+    ]))
+    story = [header, Spacer(1, 6)]
+
+    if dados.get("resumo"):
+        r = dados["resumo"]
+        resumo = Table([["Faturamento", "Despesas", "Comissões", "Lucro estimado"],
+                        [fmt_valor("faturamento", r["faturamento"]), fmt_valor("valor", r["despesas"]),
+                         fmt_valor("comissao", r["comissoes"]), fmt_valor("total", r["lucro"])]])
+        resumo.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#18181B")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CCCCCC")),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("PADDING", (0, 0), (-1, -1), 6),
+        ]))
+        story += [Paragraph("Resumo do período", sec), resumo]
+
+    for s in secoes:
+        lista = dados[s]
+        story.append(Paragraph(SECAO_TITULOS.get(s, s), sec))
+        if not lista:
+            story.append(Paragraph("Nenhum registro no período.", sub))
+            continue
+        cols = list(lista[0].keys())
+        body = [[c.replace("_", " ").capitalize() for c in cols]]
+        for row in lista:
+            body.append([fmt_valor(c, row[c]) for c in cols])
+        t = Table(body, repeatRows=1)
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#18181B")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#CCCCCC")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F4F4F5")]),
+            ("PADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story.append(t)
+
+    doc.build(story)
+    buf.seek(0)
+    nome = f"{tipo}_{secao or 'completo'}_{inicio}_{fim}.pdf"
+    return StreamingResponse(buf, media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="{nome}"'})
+
+
 # ---------------- CONFIGURACOES ----------------
 @api.get("/configuracoes")
 def get_config(user=Depends(get_current_user)):

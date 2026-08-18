@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Printer, Download } from "lucide-react";
+import { Printer, Download, FileText } from "lucide-react";
 import { api, apiError, money, API_URL } from "@/api";
 import { PageHeader } from "@/components/Layout";
 import { DataTable } from "@/components/CrudPage";
@@ -52,28 +52,35 @@ export default function Relatorios() {
 
   useEffect(() => { load(); }, [tipo, inicio, fim]);
 
-  const exportCsv = (secao) => {
+  const baixar = (formato, secao) => {
     const token = localStorage.getItem("bp_token");
-    fetch(`${API_URL}/relatorios/${tipo}/csv?inicio=${inicio}&fim=${fim}&secao=${secao}`, {
+    const query = `inicio=${inicio}&fim=${fim}${secao ? `&secao=${secao}` : ""}`;
+    fetch(`${API_URL}/relatorios/${tipo}/${formato}?${query}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => r.blob())
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.blob();
+      })
       .then((b) => {
         const url = URL.createObjectURL(b);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `${tipo}_${secao}_${inicio}_${fim}.csv`;
+        a.download = `${tipo}_${secao || "completo"}_${inicio}_${fim}.${formato}`;
         a.click();
         URL.revokeObjectURL(url);
       })
-      .catch(() => toast.error("Falha ao exportar CSV"));
+      .catch(() => toast.error(`Falha ao exportar ${formato.toUpperCase()}`));
   };
+
+  const exportCsv = (secao) => baixar("csv", secao);
+  const exportPdf = (secao) => baixar("pdf", secao);
 
   const secoes = data ? Object.keys(data).filter((k) => Array.isArray(data[k])) : [];
 
   return (
     <div data-testid="page-relatorios">
-      <PageHeader title="Relatórios" subtitle="Filtre por período, imprima ou exporte em CSV">
+      <PageHeader title="Relatórios" subtitle="Filtre por período, imprima ou exporte em PDF e CSV">
         <select data-testid="tipo-relatorio" value={tipo} onChange={(e) => setTipo(e.target.value)}
           className="bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm">
           {TIPOS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
@@ -84,6 +91,9 @@ export default function Relatorios() {
           className="bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm" />
         <Button data-testid="imprimir" variant="outline" className="border-zinc-700" onClick={() => window.print()}>
           <Printer className="h-4 w-4 mr-1" /> Imprimir
+        </Button>
+        <Button data-testid="pdf-completo" onClick={() => exportPdf(null)} className="bg-[#D4AF37] text-black hover:bg-[#B5952F] font-semibold">
+          <FileText className="h-4 w-4 mr-1" /> PDF completo
         </Button>
       </PageHeader>
 
@@ -104,9 +114,14 @@ export default function Relatorios() {
           <div key={s}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-bold">{TITULOS[s] || s}</h3>
+              <div className="flex gap-2">
+              <Button data-testid={`export-pdf-${s}`} size="sm" variant="outline" className="border-zinc-700 no-print" onClick={() => exportPdf(s)}>
+                <FileText className="h-3.5 w-3.5 mr-1" /> PDF
+              </Button>
               <Button data-testid={`export-${s}`} size="sm" variant="outline" className="border-zinc-700 no-print" onClick={() => exportCsv(s)}>
                 <Download className="h-3.5 w-3.5 mr-1" /> CSV
               </Button>
+              </div>
             </div>
             <DataTable testid={`tabela-${s}`} columns={COLS[s] || [{ key: "nome", label: "Item" }]} data={data[s]} />
           </div>
