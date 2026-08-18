@@ -1,0 +1,22 @@
+{
+  "name": "barberpro-desktop",
+  "version": "1.0.0",
+  "description": "BarberPro - Sistema de Gestão offline para barbearia",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.cortecerto.barberpro",
+    "productName": "BarberPro",
+    "files": ["main.js", "frontend-build/**", "backend/**"],
+    "win": { "target": "nsis" },
+    "nsis": {
+      "oneClick": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "BarberPro_Setup.exe"
+    }
+  }
+}

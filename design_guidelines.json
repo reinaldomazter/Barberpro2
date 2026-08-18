@@ -1,0 +1,102 @@
+{
+  "theme_and_concept": {
+    "name": "Barbershop Noir (Luxury / Performance Pro)",
+    "description": "A high-contrast, deep dark mode interface tailored for a premium barbershop management system. The design must feel professional, masculine, and sleek. It relies on deep obsidian backgrounds, off-black surfaces, and high-visibility vintage gold/amber accents to guide user attention quickly. Designed for speed: attendants must be able to perform POS actions in high-density grids with minimal clicks.",
+    "theme_mode": "dark"
+  },
+  "typography": {
+    "strategy": "The Anti-Default Rule: Professional yet aggressive.",
+    "fonts": {
+      "headings": "Manrope",
+      "body": "IBM Plex Sans",
+      "monospace": "JetBrains Mono"
+    },
+    "scale": {
+      "h1": "text-4xl sm:text-5xl font-black tracking-tight",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-semibold",
+      "h4": "text-lg font-semibold",
+      "body": "text-sm sm:text-base leading-relaxed",
+      "labels": "text-xs font-bold uppercase tracking-[0.2em]"
+    }
+  },
+  "colors": {
+    "strategy": "High contrast dark mode. Avoid fully black (#000000), use tinted greys. Brand color is used sparingly for primary actions.",
+    "palette": {
+      "background": "#09090B",
+      "surface_card": "#18181B",
+      "surface_elevated": "#27272A",
+      "primary_brand": "#D4AF37",
+      "primary_hover": "#B5952F",
+      "text_primary": "#FFFFFF",
+      "text_secondary": "#A1A1AA",
+      "success": "#10B981",
+      "danger": "#EF4444",
+      "warning": "#F59E0B",
+      "border": "#27272A"
+    }
+  },
+  "layouts": {
+    "grid_system": "Mode B: High Density Grid. Designed for fast scanning and minimum white-space waste on desktop monitors.",
+    "sidebar": "Fixed left sidebar. 250px width. Deepest background (#09090B). Must contain full navigation menu with distinct active states (Gold text, subtle gold background tint).",
+    "dashboard_bento": {
+      "kpis": "grid-cols-2 md:grid-cols-4 gap-4. Cards must be flat, 1px border (#27272A), no heavy shadows.",
+      "charts": "col-span-full md:col-span-2 or 3 for main revenue graph. col-span-1 for pie charts (services breakdown).",
+      "appointments": "col-span-full md:col-span-1 row-span-2. Vertical list format, highly scannable."
+    },
+    "pos_system": "Atendimento/Venda rápida module needs massive hit targets. Grid of services (col-span-1, aspect-square or rectangle) with large icons and price.",
+    "spacing": "Use p-4 to p-6 for inner card paddings. Use gap-4 for dense data grids, gap-8 for page sections."
+  },
+  "components": {
+    "surfaces": "Neumorphic/Technical mix: Flat backgrounds with sharp 1px borders (border-zinc-800). Max 8px border-radius (rounded-lg). NEVER use Glassmorphism for data-heavy sections.",
+    "buttons": "Sharp edges (rounded-md). Primary buttons use Vintage Gold. Secondary buttons use transparent background with 1px border.",
+    "tables": "Shadcn Table. Dense rows. Hover state on rows must be a subtle lightness bump (hover:bg-zinc-800/50). Zebra striping is permitted for readability.",
+    "forms": "Shadcn Forms. Inputs must have clear visible borders (border-zinc-700). Focus states must ring in Gold (focus:ring-2 focus:ring-[#D4AF37]).",
+    "calendar": "Custom full-screen or large-scale component for Agendamentos. Must distinctively show available vs booked slots using color intensity.",
+    "icons": "Phosphor Icons (Duotone or Regular weight). Bold, sharp, modern."
+  },
+  "motion": {
+    "philosophy": "Functional and fast. No long delays.",
+    "interactions": "Hover states on all clickable elements. Buttons should slightly scale down (active:scale-95).",
+    "transitions": "Use specific transitions: 'transition-colors duration-200 ease-in-out' for buttons. Avoid 'transition-all'."
+  },
+  "image_urls": {
+    "login_background": {
+      "url": "https://images.unsplash.com/photo-1759134198561-e2041049419c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwyfHxkYXJrJTIwbW9vZHklMjBiYXJiZXJzaG9wJTIwaW50ZXJpb3J8ZW58MHx8fHwxNzg3MDEyNjg2fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Dark, moody barbershop interior with barbers working. Excellent for the login screen background overlay."
+    },
+    "barber_avatar_1": {
+      "url": "https://images.pexels.com/photos/8552627/pexels-photo-8552627.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Confident barber in an apron. Use for Barbeiros module placeholders."
+    },
+    "barber_avatar_2": {
+      "url": "https://images.unsplash.com/photo-1553521041-d168abd31de3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBiYXJiZXIlMjBwb3J0cmFpdHxlbnwwfHx8fDE3ODcwMTI2OTB8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Black and white portrait of a barber holding scissors."
+    }
+  },
+  "accessibility": {
+    "contrast": "Text against background must exceed 4.5:1 ratio. Gold (#D4AF37) against Zinc 950 is highly legible.",
+    "focus": "All inputs and interactive elements must have a visible focus ring.",
+    "testing": "All interactive and key informational elements MUST include a 'data-testid' attribute (e.g., data-testid='login-submit-button', data-testid='sidebar-agendamentos')."
+  },
+  "instructions_to_main_agent": [
+    "You are building BarberPro, a 100% offline local SQLite desktop-style web app (ERP). Focus on functionality and density.",
+    "Implement the UI exclusively in Dark Mode. Follow the Barbershop Noir color palette provided.",
+    "Use Phosphor Icons (@phosphor-icons/react). Run 'yarn add @phosphor-icons/react'.",
+    "All text MUST be in Portuguese (pt-BR). Use 'Faturamento', 'Agendamentos', 'Atendimento Rápido', 'Comissões', 'Estoque', etc.",
+    "The login screen should feature the login_background image with a heavy black overlay (bg-black/60) to ensure the login card is the focal point.",
+    "The POS (Venda Rápida) module must be built for SPEED. Use a grid of clickable service/product cards with clear prices. No nested dropdowns for frequent actions.",
+    "Implement Shadcn UI heavily, but override default styles to match the dark/gold theme. Remove the default rounded-xl borders, use rounded-md or rounded-lg for a sharper look.",
+    "Ensure the application layout occupies 100vh with a fixed sidebar and a scrollable main content area.",
+    "Never use fully transparent backgrounds on dropdowns, modals, or headers. Always use solid surfaces (bg-[#18181B]) with 1px borders.",
+    "Do not center-align the app container. Dashboards must be left-aligned and fill the available space (w-full).",
+    "Install and use 'sonner' for toast notifications. Ensure toast theme is dark.",
+    "Use Recharts for the dashboard graphics (Faturamento do dia/mês)."
+  ],
+  "universal_guidelines": {
+    "avoid_ai_slop": "Do not use generic centered layouts, simplistic gradients, and uniform styling. Create depth through layered design elements with z-index hierarchy and 1px borders.",
+    "micro_animations": "Every interaction needs micro-animations - hover states, transitions, and entrance animations. Static = dead.",
+    "spacing": "Use generous spacing inside containers, but keep dashboard elements tightly coupled (Mode B).",
+    "testing_attributes": "All interactive elements MUST have data-testid. DO NOT omit this."
+  }
+}
