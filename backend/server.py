@@ -975,3 +975,9 @@ def startup():
     init_db()
     seed_admin()
     seed_demo()
+
+
+if __name__ == "__main__":
+    # Execução local/desktop (PyInstaller): python server.py ou barberpro-backend.exe
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=int(os.environ.get("PORT", "8001")), log_level="info")

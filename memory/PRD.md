@@ -34,7 +34,7 @@ depois como app desktop Windows (Electron).
 Iteration 1: 44/44 checks (26 pytest backend + 18 Playwright) — 100% backend e frontend.
 
 ## Backlog
-- P1: geração real do `BarberPro_Setup.exe` (PyInstaller + electron-builder em máquina Windows)
+- P1: rodar `build_windows.bat` numa máquina Windows para gerar o `BarberPro_Setup.exe` (script e scaffold Electron prontos)
 - P2: backup automático agendado (hoje apenas preferência salva)
 - P2: impressão de comprovante do atendimento; split de pagamento em múltiplas formas
 - P2: dividir `server.py` em routers
