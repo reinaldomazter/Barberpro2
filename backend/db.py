@@ -1,10 +1,21 @@
 import os
 import sqlite3
+import sys
 from pathlib import Path
 from datetime import datetime, timezone
 
-DATA_DIR = Path(os.environ.get("BARBERPRO_DATA_DIR", str(Path(__file__).parent / "data")))
-BACKUP_DIR = Path(os.environ.get("BARBERPRO_BACKUP_DIR", str(DATA_DIR / "backups")))
+
+def _default_data_dir() -> Path:
+    # Quando empacotado (PyInstaller), __file__ aponta para uma pasta temporária:
+    # os dados precisam ir para uma pasta permanente do usuário.
+    if getattr(sys, "frozen", False):
+        base = os.environ.get("APPDATA") or os.environ.get("LOCALAPPDATA") or str(Path.home())
+        return Path(base) / "BarberPro" / "dados"
+    return Path(__file__).parent / "data"
+
+
+DATA_DIR = Path(os.environ.get("BARBERPRO_DATA_DIR") or _default_data_dir())
+BACKUP_DIR = Path(os.environ.get("BARBERPRO_BACKUP_DIR") or str(DATA_DIR / "backups"))
 DB_PATH = DATA_DIR / "barberpro.db"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)

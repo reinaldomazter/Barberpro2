@@ -1,4 +1,5 @@
 import os
+import secrets
 from datetime import datetime, timezone, timedelta
 
 import bcrypt
@@ -22,7 +23,20 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def get_jwt_secret() -> str:
-    return os.environ["JWT_SECRET"]
+    secret = os.environ.get("JWT_SECRET")
+    if secret:
+        return secret
+    # Instalação desktop offline sem .env: gera e guarda um segredo local uma única vez.
+    conn = get_conn()
+    row = conn.execute("SELECT valor FROM configuracoes WHERE chave='jwt_secret'").fetchone()
+    if row and row["valor"]:
+        conn.close()
+        return row["valor"]
+    secret = secrets.token_hex(32)
+    conn.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES ('jwt_secret', ?)", (secret,))
+    conn.commit()
+    conn.close()
+    return secret
 
 
 def create_access_token(user_id: int, usuario: str, perfil: str) -> str:

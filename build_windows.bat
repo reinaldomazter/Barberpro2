@@ -10,7 +10,7 @@ echo [1/4] Backend -> executavel
 cd backend
 python -m pip install -r requirements.txt || goto :erro
 python -m pip install pyinstaller || goto :erro
-pyinstaller --noconfirm --onefile --name barberpro-backend --add-data ".env;." server.py || goto :erro
+pyinstaller --noconfirm --onefile --name barberpro-backend --add-data ".env;." --hidden-import bcrypt --hidden-import jwt --hidden-import reportlab.graphics.barcode --collect-all reportlab server.py || goto :erro
 if not exist "..\desktop\backend" mkdir "..\desktop\backend"
 copy /Y dist\barberpro-backend.exe ..\desktop\backend\ || goto :erro
 cd ..
