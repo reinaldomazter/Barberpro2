@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Scissors, Loader2 } from "lucide-react";
 import { useAuth } from "@/auth";
-import { apiError } from "@/api";
+import { api, apiError } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -15,6 +15,11 @@ export default function Login() {
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
+  const [ident, setIdent] = useState({ nome_barbearia: "Barbearia Corte Certo", logo: "" });
+
+  useEffect(() => {
+    api.get("/publico/identidade").then(({ data }) => setIdent(data)).catch(() => {});
+  }, []);
 
   if (user) return <Navigate to="/" replace />;
 
@@ -41,10 +46,14 @@ export default function Login() {
         className="relative w-full max-w-sm bg-[#18181B]/95 border border-zinc-800 rounded-lg p-8 backdrop-blur"
       >
         <div className="flex items-center gap-2 mb-1">
-          <Scissors className="h-6 w-6 text-[#D4AF37]" />
+          {ident.logo ? (
+            <img src={ident.logo} alt="Logo" data-testid="login-logo" className="h-10 w-10 rounded object-contain bg-zinc-900" />
+          ) : (
+            <Scissors className="h-6 w-6 text-[#D4AF37]" />
+          )}
           <h1 className="text-3xl font-extrabold">Barber<span className="text-[#D4AF37]">Pro</span></h1>
         </div>
-        <p className="label-xs mb-8">Sistema de Gestão – Barbearia Corte Certo</p>
+        <p className="label-xs mb-8">Sistema de Gestão – {ident.nome_barbearia}</p>
 
         <div className="space-y-4">
           <div>

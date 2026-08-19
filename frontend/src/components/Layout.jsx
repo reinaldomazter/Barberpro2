@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, CalendarDays, Scissors, Users, UserCog, Tag, Package, Boxes,
   Wallet, Receipt, BarChart3, Settings, HardDriveDownload, LogOut, Menu, X,
 } from "lucide-react";
 import { useAuth } from "@/auth";
+import { api } from "@/api";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
@@ -27,6 +28,11 @@ export default function Layout({ children }) {
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [ident, setIdent] = useState({ nome_barbearia: "Barbearia Corte Certo", logo: "" });
+
+  useEffect(() => {
+    api.get("/publico/identidade").then(({ data }) => setIdent(data)).catch(() => {});
+  }, []);
 
   const items = NAV.filter((n) => !n.admin || isAdmin);
 
@@ -38,12 +44,16 @@ export default function Layout({ children }) {
       >
         <div className="px-5 py-5 border-b border-zinc-800">
           <div className="flex items-center gap-2">
-            <Scissors className="h-5 w-5 text-[#D4AF37]" />
+            {ident.logo ? (
+              <img src={ident.logo} alt="Logo" data-testid="sidebar-logo" className="h-8 w-8 rounded object-contain bg-zinc-900" />
+            ) : (
+              <Scissors className="h-5 w-5 text-[#D4AF37]" />
+            )}
             <span className="font-extrabold text-lg tracking-tight">
               Barber<span className="text-[#D4AF37]">Pro</span>
             </span>
           </div>
-          <p className="label-xs mt-1">Barbearia Corte Certo</p>
+          <p className="label-xs mt-1">{ident.nome_barbearia}</p>
         </div>
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           {items.map((n) => (

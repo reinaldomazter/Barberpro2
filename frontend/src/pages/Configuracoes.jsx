@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Save, Plus, Trash2, KeyRound, Eraser } from "lucide-react";
+import { Save, Plus, Trash2, KeyRound, Eraser, ImagePlus } from "lucide-react";
 import { api, apiError } from "@/api";
 import { PageHeader } from "@/components/Layout";
 import { DataTable, Field } from "@/components/CrudPage";
@@ -13,7 +13,6 @@ const CAMPOS = [
   { name: "telefone", label: "Telefone" },
   { name: "whatsapp", label: "WhatsApp" },
   { name: "endereco", label: "Endereço", full: true },
-  { name: "logo", label: "Logo (URL ou caminho local)", full: true },
   { name: "horario_funcionamento", label: "Horário de funcionamento" },
   { name: "formas_pagamento", label: "Formas de pagamento (separadas por vírgula)", full: true },
   { name: "comissao_padrao", label: "Comissão padrão (%)", type: "number" },
@@ -65,6 +64,20 @@ export default function Configuracoes() {
     } catch (e) { toast.error(apiError(e)); }
   };
 
+  const enviarLogo = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 300 * 1024) return toast.error("Arquivo muito grande. Use uma imagem de até 300 KB");
+    const reader = new FileReader();
+    reader.onload = () => {
+      setConf((c) => ({ ...c, logo: reader.result }));
+      toast.success("Logo carregada. Clique em Salvar para aplicar");
+    };
+    reader.onerror = () => toast.error("Não foi possível ler o arquivo");
+    reader.readAsDataURL(file);
+  };
+
   const limparDados = async () => {
     setLimpando(true);
     try {
@@ -100,6 +113,35 @@ export default function Configuracoes() {
         {CAMPOS.map((f) => (
           <Field key={f.name} field={f} value={conf[f.name]} onChange={(v) => setConf({ ...conf, [f.name]: v })} />
         ))}
+        <div className="sm:col-span-2 border-t border-zinc-800 pt-4">
+          <label className="label-xs block mb-2">Logo da barbearia (PNG ou JPG, até 300 KB)</label>
+          <div className="flex items-center gap-4 flex-wrap">
+            {conf.logo ? (
+              <img src={conf.logo} alt="Logo" data-testid="logo-preview" className="h-20 w-20 rounded object-contain bg-zinc-900 border border-zinc-700" />
+            ) : (
+              <div className="h-20 w-20 rounded bg-zinc-900 border border-dashed border-zinc-700 flex items-center justify-center">
+                <ImagePlus className="h-6 w-6 text-zinc-600" />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <label className="cursor-pointer inline-flex items-center px-3 py-2 text-sm rounded-md border border-zinc-700 hover:bg-zinc-800 transition-colors duration-200">
+                <ImagePlus className="h-4 w-4 mr-1" /> Escolher arquivo
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                  data-testid="logo-input" onChange={enviarLogo} />
+              </label>
+              {conf.logo && (
+                <Button data-testid="remover-logo" variant="outline" className="border-zinc-700"
+                  onClick={() => setConf({ ...conf, logo: "" })}>
+                  Remover
+                </Button>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            A logo é gravada no banco local e aparece no menu, na tela de login e no cabeçalho dos relatórios em PDF.
+            Clique em <strong>Salvar</strong> para aplicar.
+          </p>
+        </div>
       </div>
 
       <div className="flex items-center justify-between mt-8 mb-2">

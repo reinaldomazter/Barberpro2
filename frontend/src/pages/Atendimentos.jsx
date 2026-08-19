@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Plus, Trash2, Check, Printer } from "lucide-react";
 import { api, apiError, money } from "@/api";
 import { PageHeader } from "@/components/Layout";
 import { DataTable, Field } from "@/components/CrudPage";
@@ -28,6 +28,8 @@ export default function Atendimentos() {
 
   const [inicio, setInicio] = useState(hoje());
   const [fim, setFim] = useState(hoje());
+  const [recibo, setRecibo] = useState(null);
+  const [conf, setConf] = useState({});
 
   const load = () => api.get("/atendimentos", { params: { inicio, fim } }).then(({ data }) => setLista(data));
   useEffect(() => { load(); }, [inicio, fim]);
@@ -36,6 +38,7 @@ export default function Atendimentos() {
     api.get("/barbeiros").then(({ data }) => setBarbeiros(data));
     api.get("/servicos").then(({ data }) => setServicos(data));
     api.get("/produtos").then(({ data }) => setProdutos(data));
+    api.get("/configuracoes").then(({ data }) => setConf(data));
   }, []);
 
   useEffect(() => {
@@ -89,8 +92,71 @@ export default function Atendimentos() {
         observacoes: obs,
       });
       toast.success(`Atendimento finalizado — ${money(data.total)} · comissão ${money(data.comissao)}`);
+      setRecibo({
+        numero: data.id,
+        data: new Date(),
+        cliente: clientes.find((c) => String(c.id) === String(clienteId))?.nome || "Avulso",
+        barbeiro: barbeiro?.nome || "",
+        itens: itens.map((i) => ({ ...i })),
+        subtotal, desconto: Number(desconto || 0), total: data.total, forma,
+      });
       setOpen(false); reset(); load();
     } catch (e) { toast.error(apiError(e)); }
+  };
+
+  const imprimirRecibo = () => {
+    const r = recibo;
+    if (!r) return;
+    const linhas = r.itens.map((i) => `
+      <tr>
+        <td>${i.descricao}${i.usou_pacote ? " <small>(pacote)</small>" : ""}</td>
+        <td class="c">${i.quantidade}</td>
+        <td class="r">${i.usou_pacote ? "—" : money(i.quantidade * i.preco_unitario)}</td>
+      </tr>`).join("");
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+      <title>Comprovante #${r.numero}</title>
+      <style>
+        *{font-family:Arial,Helvetica,sans-serif;box-sizing:border-box}
+        body{width:78mm;margin:0 auto;padding:8px;color:#000;font-size:12px}
+        h1{font-size:15px;margin:4px 0 0;text-align:center}
+        .sub{text-align:center;font-size:10px;color:#444;margin:2px 0}
+        img{display:block;margin:0 auto 4px;max-height:52px;max-width:52px;object-fit:contain}
+        hr{border:none;border-top:1px dashed #000;margin:8px 0}
+        table{width:100%;border-collapse:collapse}
+        td,th{padding:2px 0;font-size:11px;vertical-align:top}
+        .c{text-align:center;width:28px}.r{text-align:right;width:70px}
+        .tot{font-size:14px;font-weight:bold}
+        .foot{text-align:center;font-size:10px;margin-top:10px}
+      </style></head><body>
+      ${conf.logo ? `<img src="${conf.logo}" alt="">` : ""}
+      <h1>${conf.nome_barbearia || "Barbearia"}</h1>
+      ${conf.cnpj ? `<p class="sub">CNPJ ${conf.cnpj}</p>` : ""}
+      ${conf.endereco ? `<p class="sub">${conf.endereco}</p>` : ""}
+      ${conf.telefone ? `<p class="sub">Tel ${conf.telefone}</p>` : ""}
+      <hr>
+      <p class="sub" style="text-align:left">
+        <strong>Comprovante nº ${r.numero}</strong><br>
+        ${r.data.toLocaleString("pt-BR")}<br>
+        Cliente: ${r.cliente}<br>
+        Barbeiro: ${r.barbeiro}
+      </p>
+      <hr>
+      <table><thead><tr><th style="text-align:left">Item</th><th class="c">Qtd</th><th class="r">Valor</th></tr></thead>
+      <tbody>${linhas}</tbody></table>
+      <hr>
+      <table>
+        <tr><td>Subtotal</td><td class="r">${money(r.subtotal)}</td></tr>
+        <tr><td>Desconto</td><td class="r">-${money(r.desconto)}</td></tr>
+        <tr class="tot"><td>TOTAL</td><td class="r">${money(r.total)}</td></tr>
+        <tr><td>Pagamento</td><td class="r">${r.forma}</td></tr>
+      </table>
+      <p class="foot">Obrigado pela preferência!<br>BarberPro — sistema de gestão</p>
+      <script>window.onload=function(){window.print();}<\/script>
+      </body></html>`;
+    const w = window.open("", "_blank", "width=420,height=680");
+    if (!w) return toast.error("Permita janelas pop-up para imprimir o comprovante");
+    w.document.write(html);
+    w.document.close();
   };
 
   return (
@@ -208,6 +274,44 @@ export default function Atendimentos() {
             <Button variant="outline" onClick={() => setOpen(false)} className="border-zinc-700">Cancelar</Button>
             <Button data-testid="finalizar-button" onClick={finalizar} className="bg-[#D4AF37] text-black hover:bg-[#B5952F] font-bold">
               <Check className="h-4 w-4 mr-1" /> 7. Finalizar atendimento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!recibo} onOpenChange={() => setRecibo(null)}>
+        <DialogContent className="bg-[#18181B] border-zinc-800 max-w-sm" data-testid="recibo-dialog">
+          <DialogHeader><DialogTitle>Comprovante nº {recibo?.numero}</DialogTitle></DialogHeader>
+          <div className="text-sm space-y-2">
+            <div className="text-center">
+              {conf.logo && <img src={conf.logo} alt="Logo" className="h-12 w-12 mx-auto object-contain rounded bg-zinc-900 mb-1" />}
+              <p className="font-bold">{conf.nome_barbearia || "Barbearia"}</p>
+              {conf.endereco && <p className="text-xs text-muted-foreground">{conf.endereco}</p>}
+            </div>
+            <div className="border-t border-dashed border-zinc-700 pt-2 text-xs text-muted-foreground">
+              <p>{recibo?.data.toLocaleString("pt-BR")}</p>
+              <p>Cliente: <span className="text-white">{recibo?.cliente}</span></p>
+              <p>Barbeiro: <span className="text-white">{recibo?.barbeiro}</span></p>
+            </div>
+            <div className="border-t border-dashed border-zinc-700 pt-2 space-y-1">
+              {recibo?.itens.map((i, idx) => (
+                <div key={idx} className="flex justify-between gap-2">
+                  <span>{i.quantidade}x {i.descricao}{i.usou_pacote ? " (pacote)" : ""}</span>
+                  <span className="mono">{i.usou_pacote ? "—" : money(i.quantidade * i.preco_unitario)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-dashed border-zinc-700 pt-2 space-y-1">
+              <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="mono">{money(recibo?.subtotal)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Desconto</span><span className="mono text-red-400">-{money(recibo?.desconto)}</span></div>
+              <div className="flex justify-between text-lg font-bold"><span>Total</span><span className="mono text-[#D4AF37]">{money(recibo?.total)}</span></div>
+              <div className="flex justify-between text-xs"><span className="text-muted-foreground">Pagamento</span><span>{recibo?.forma}</span></div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="border-zinc-700" onClick={() => setRecibo(null)}>Fechar</Button>
+            <Button data-testid="imprimir-recibo" onClick={imprimirRecibo} className="bg-[#D4AF37] text-black hover:bg-[#B5952F] font-semibold">
+              <Printer className="h-4 w-4 mr-1" /> Imprimir comprovante
             </Button>
           </DialogFooter>
         </DialogContent>

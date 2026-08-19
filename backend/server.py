@@ -8,6 +8,7 @@ import csv
 import io
 import os
 import shutil
+import sqlite3
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -681,6 +682,20 @@ def dashboard(user=Depends(get_current_user)):
            LEFT JOIN atendimentos a ON a.barbeiro_id=b.id AND substr(a.data,1,7)=?
            GROUP BY b.id ORDER BY faturamento DESC""", (mes,)))
     alertas = rows(conn.execute("SELECT nome, estoque, estoque_minimo FROM produtos WHERE estoque <= estoque_minimo"))
+    aniversariantes = []
+    hoje_dt = datetime.now()
+    for c in rows(conn.execute("SELECT id, nome, telefone, whatsapp, nascimento FROM clientes WHERE nascimento IS NOT NULL AND nascimento <> ''")):
+        try:
+            nasc = datetime.strptime(c["nascimento"][:10], "%Y-%m-%d")
+        except ValueError:
+            continue
+        for delta in range(7):
+            d = hoje_dt + timedelta(days=delta)
+            if (nasc.month, nasc.day) == (d.month, d.day):
+                aniversariantes.append({**c, "data": d.strftime("%Y-%m-%d"),
+                                        "idade": d.year - nasc.year, "em_dias": delta})
+                break
+    aniversariantes.sort(key=lambda x: x["em_dias"])
     conn.close()
     return {
         "faturamento_dia": fat_dia["t"], "atendimentos_dia": fat_dia["c"],
@@ -689,6 +704,7 @@ def dashboard(user=Depends(get_current_user)):
         "lucro_estimado": fat_dia["t"] - comissoes - despesas,
         "proximos": proximos, "fat_diario": fat_diario, "fat_mensal": list(reversed(fat_mensal)),
         "top_servicos": top_servicos, "barbeiros": barbeiros, "alertas_estoque": alertas,
+        "aniversariantes": aniversariantes,
     }
 
 
@@ -748,12 +764,12 @@ def relatorio_data(tipo: str, inicio: str, fim: str):
 
 
 @api.get("/relatorios/{tipo}")
-def get_relatorio(tipo: str, inicio: str, fim: str, user=Depends(get_current_user)):
+def get_relatorio(tipo: str, inicio: str, fim: str, user=Depends(require_admin)):
     return relatorio_data(tipo, inicio, fim)
 
 
 @api.get("/relatorios/{tipo}/csv")
-def get_relatorio_csv(tipo: str, inicio: str, fim: str, secao: Optional[str] = None, user=Depends(get_current_user)):
+def get_relatorio_csv(tipo: str, inicio: str, fim: str, secao: Optional[str] = None, user=Depends(require_admin)):
     data = relatorio_data(tipo, inicio, fim)
     key = secao if secao and secao in data else next(k for k in data if isinstance(data[k], list))
     lista = data[key]
@@ -785,7 +801,7 @@ def fmt_valor(col, v):
 
 
 @api.get("/relatorios/{tipo}/pdf")
-def get_relatorio_pdf(tipo: str, inicio: str, fim: str, secao: Optional[str] = None, user=Depends(get_current_user)):
+def get_relatorio_pdf(tipo: str, inicio: str, fim: str, secao: Optional[str] = None, user=Depends(require_admin)):
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -820,9 +836,24 @@ def get_relatorio_pdf(tipo: str, inicio: str, fim: str, secao: Optional[str] = N
 
     logo_path = conf.get("logo") or ""
     logo_cell = ""
-    if logo_path and not logo_path.startswith("http") and Path(logo_path).exists():
+    logo_bytes = None
+    if logo_path.startswith("data:image"):
         try:
-            logo_cell = Image(logo_path, width=28 * mm, height=28 * mm, kind="proportional")
+            import base64
+            logo_bytes = base64.b64decode(logo_path.split(",", 1)[1])
+        except Exception:
+            logo_bytes = None
+    elif logo_path and not logo_path.startswith("http") and Path(logo_path).exists():
+        logo_bytes = Path(logo_path).read_bytes()
+    if logo_bytes:
+        try:
+            from PIL import Image as PILImage
+            im = PILImage.open(io.BytesIO(logo_bytes))
+            im.load()
+            buf_logo = io.BytesIO()
+            im.convert("RGB").save(buf_logo, format="PNG")
+            buf_logo.seek(0)
+            logo_cell = Image(buf_logo, width=28 * mm, height=28 * mm, kind="proportional")
         except Exception:
             logo_cell = ""
 
@@ -965,6 +996,36 @@ def limpar_dados(body: dict = {}, user=Depends(require_admin)):
     conn.commit()
     conn.close()
     return {"ok": True, "backup": backup["arquivo"], "tabelas": len(ordem)}
+
+
+@api.get("/publico/identidade")
+def identidade():
+    conn = get_conn()
+    conf = {r["chave"]: r["valor"] for r in conn.execute(
+        "SELECT * FROM configuracoes WHERE chave IN ('nome_barbearia','logo')")}
+    conn.close()
+    return {"nome_barbearia": conf.get("nome_barbearia") or "Barbearia", "logo": conf.get("logo") or ""}
+
+
+@api.post("/backup/auto")
+def backup_auto(user=Depends(get_current_user)):
+    conn = get_conn()
+    conf = {r["chave"]: r["valor"] for r in conn.execute("SELECT * FROM configuracoes")}
+    ja_hoje = conn.execute(
+        "SELECT id FROM backups WHERE date(data)=date('now','localtime') AND tipo='automatico'").fetchone()
+    conn.close()
+    if conf.get("backup_automatico") != "1":
+        return {"criado": False, "motivo": "desativado"}
+    if ja_hoje:
+        return {"criado": False, "motivo": "ja_realizado_hoje"}
+    pasta = conf.get("backup_pasta") or str(BACKUP_DIR)
+    try:
+        r = do_backup({"pasta": pasta, "tipo": "automatico"}, {"usuario": user["usuario"], "perfil": "admin"})
+    except sqlite3.IntegrityError:
+        return {"criado": False, "motivo": "ja_realizado_hoje"}
+    except Exception as e:
+        return {"criado": False, "motivo": "erro", "detalhe": str(e)}
+    return {"criado": True, **r}
 
 
 @api.get("/logs")

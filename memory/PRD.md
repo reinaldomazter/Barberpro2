@@ -15,7 +15,7 @@ depois como app desktop Windows (Electron).
 ## Usuários
 - admin / 123456 (administrador) · atendente / 123456 (atendente)
 
-## Implementado (18/06/2026)
+## Implementado (18/06/2026 → 19/08/2026)
 - Login, troca de senha, gestão de usuários, RBAC (atendente sem Relatórios/Configurações/Backup)
 - Dashboard: 12 KPIs + gráficos (faturamento diário/mensal, serviços mais vendidos, desempenho barbeiros), próximos agendamentos, alerta de estoque
 - Barbeiros (comissão individual), Serviços, Clientes (busca, histórico, pacotes), Produtos
@@ -27,11 +27,17 @@ depois como app desktop Windows (Electron).
 - Despesas por categoria
 - Relatórios (financeiro, barbeiros, clientes, serviços, produtos) com filtro de período, impressão, export CSV e **export PDF** (cabeçalho com nome/CNPJ/telefone/endereço e logo da barbearia; PDF completo ou por seção)
 - Backup: gerar (`backup_DD-MM-AAAA_HH-MM-SS.db`), restaurar com confirmação e cópia de segurança prévia, pasta de destino, flag de automático
+- Logo da barbearia enviada por arquivo (guardada em base64 no banco local) exibida no menu lateral, na tela de login e no cabeçalho dos relatórios PDF
+- Aniversariantes da semana no painel, com link direto de WhatsApp e mensagem pronta
+- Backup automático diário: ao abrir o painel, se ativado e ainda não houver backup do dia, gera na pasta escolhida e avisa por notificação
+- Comprovante do atendimento: recibo na tela ao finalizar + impressão em formato de cupom (78 mm) com logo, dados da barbearia, itens, descontos, total, forma de pagamento e barbeiro
 - Configurações da barbearia + usuários + senhas + **limpar dados de demonstração** (backup automático antes, confirmação digitando LIMPAR, opção de apagar também os cadastros fictícios)
 - Dados de demonstração (3 barbeiros, 6 serviços, 4 clientes, 6 produtos, 2 pacotes, agendamentos)
 
 ## Testes
-Iteration 1: 44/44 checks (26 pytest backend + 18 Playwright) — 100% backend e frontend.
+Iteration 1: 44/44 checks. Iteration 2 (4 features novas): 19/20 pytest + Playwright ok;
+corrigidos depois: duplicidade do backup automático (índice único + guard no Dashboard) e
+`/api/relatorios/*` agora exigem perfil admin.
 
 ## Backlog
 - P1: rodar `build_windows.bat` numa máquina Windows para gerar o `BarberPro_Setup.exe` (script e scaffold Electron prontos)

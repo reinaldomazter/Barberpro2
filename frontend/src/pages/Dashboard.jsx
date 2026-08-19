@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { TrendingUp, Users, Scissors, Wallet, Receipt, PiggyBank, AlertTriangle } from "lucide-react";
+import { TrendingUp, Users, Scissors, Wallet, Receipt, PiggyBank, AlertTriangle, Cake, MessageCircle } from "lucide-react";
 import { api, apiError, money } from "@/api";
 import { PageHeader } from "@/components/Layout";
 import { toast } from "sonner";
@@ -31,9 +31,16 @@ function Card({ title, children, className = "" }) {
 
 export default function Dashboard() {
   const [d, setD] = useState(null);
+  const autoBackupRef = useRef(false);
 
   useEffect(() => {
     api.get("/dashboard").then(({ data }) => setD(data)).catch((e) => toast.error(apiError(e)));
+    if (autoBackupRef.current) return;
+    autoBackupRef.current = true;
+    api.post("/backup/auto").then(({ data }) => {
+      if (data.criado) toast.success(`Backup automático concluído: ${data.arquivo}`, { duration: 6000 });
+      if (data.motivo === "erro") toast.error("Backup automático falhou. Verifique a pasta de destino em Backup.");
+    }).catch(() => {});
   }, []);
 
   if (!d) return <p className="text-muted-foreground">Carregando painel…</p>;
@@ -97,6 +104,37 @@ export default function Dashboard() {
                 </div>
               </div>
             ))}
+          </div>
+        </Card>
+
+        <Card title="Aniversariantes da semana">
+          <div className="space-y-2 max-h-[240px] overflow-y-auto" data-testid="aniversariantes">
+            {(d.aniversariantes || []).length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhum aniversário nos próximos 7 dias</p>
+            )}
+            {(d.aniversariantes || []).map((c) => {
+              const fone = (c.whatsapp || c.telefone || "").replace(/\D/g, "");
+              const msg = encodeURIComponent(`Feliz aniversário, ${c.nome.split(" ")[0]}! Passe na barbearia para comemorar com um corte especial.`);
+              return (
+                <div key={c.id} className="flex items-center justify-between gap-2 border border-zinc-800 rounded-md px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold flex items-center gap-1.5 truncate">
+                      <Cake className="h-3.5 w-3.5 text-[#D4AF37] shrink-0" /> {c.nome}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {c.em_dias === 0 ? "Hoje" : new Date(c.data + "T00:00").toLocaleDateString("pt-BR")} · {c.idade} anos
+                    </p>
+                  </div>
+                  {fone && (
+                    <a href={`https://wa.me/55${fone}?text=${msg}`} target="_blank" rel="noreferrer"
+                      data-testid={`whatsapp-${c.id}`}
+                      className="shrink-0 inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors duration-200">
+                      <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                    </a>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </Card>
 

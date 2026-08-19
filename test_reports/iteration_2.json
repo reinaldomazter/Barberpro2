@@ -1,0 +1,49 @@
+{
+  "summary": "Iteração 2 (BarberPro): testei as 4 features novas + regressão. Backend: novo suite pytest /app/backend/tests/test_iteration2.py com 20 casos (19 passed, 1 xfail documentado) cobrindo GET /publico/identidade (sem auth e refletindo config salva), PDF financeiro com logo base64 / logo vazia / logo http / base64 inválida (todos 200 + assinatura %PDF), dashboard.aniversariantes (estrutura, ordem por em_dias, idade coerente com nascimento, Rafael=hoje/Bruno=+2/Diego=+4, cliente novo +3 dias aparece, nascimento vazio não quebra), POST /backup/auto nos 3 estados (desativado / criado com nome backup_DD-MM-AAAA_HH-MM-SS.db listado como tipo 'automatico' / ja_realizado_hoje) e 401 sem token, além de regressão (login admin+atendente, 403 em /backup e /logs e PUT /configuracoes para atendente, matemática de total+comissão, fluxo caixa abrir/movimentar/fechar com diferença 0, /sistema/limpar-dados exigindo 'LIMPAR'). Suite da iteração 1 re-executada: 26/26 passed em modo serial. Frontend (Playwright, URL pública): logo no login e no menu lateral, upload <300KB com preview + toast, Salvar + reload refletindo no sidebar e no login, arquivo 2.4MB rejeitado com 'Arquivo muito grande', Remover+Salvar voltando ao ícone de tesoura; card 'Aniversariantes da semana' com ordem correta, 'Hoje', idades e links wa.me/55<telefone> com mensagem pré-preenchida; toast 'Backup automático concluído: backup_19-08-2026_12-02-34.db' no Dashboard e backup 'automatico' na tela Backup; fluxo POS completo abrindo recibo-dialog com nº, data/hora, cliente, barbeiro, itens, subtotal 70,00, desconto -7,00, TOTAL 63,00, Cartão de Débito e logo, impressão abrindo popup com cupom (TOTAL/Barbeiro/logo presentes) e lista com o novo atendimento; atendente sem Relatórios/Configurações/Backup e rotas /relatorios e /configuracoes redirecionando para /; diálogo de limpeza só habilita 'Apagar dados' com LIMPAR exato (cancelado, nada apagado).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/backup/auto", "issue": "Race check-then-act: duas chamadas simultâneas (React StrictMode dispara o useEffect do Dashboard 2x em dev) passaram pela verificação 'ja_realizado_hoje' e gravaram DUAS linhas idênticas na tabela backups (ids 6 e 7, mesmo arquivo backup_19-08-2026_12-02-34.db) — a tela Backup mostra o mesmo backup duplicado. Sugestão: guard de single-flight/transação (INSERT com UNIQUE em (tipo, date(data))) no backend + useRef guard no Dashboard."},
+      {"endpoint": "GET /api/relatorios/{tipo} e /csv e /pdf", "issue": "Usam get_current_user em vez de require_admin: o atendente consegue baixar relatórios e PDFs via API mesmo com o menu/rota escondidos na UI (teste marcado xfail em test_iteration2.py::TestRegressao::test_atendente_bloqueado_em_relatorios_api)."},
+      {"endpoint": "POST /api/backup (do_backup)", "issue": "Conexão de origem (get_conn) usada em conn.backup() nunca é fechada em caminho de erro; pendência já apontada na iteração 1."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Backup automático no Dashboard", "issue": "POST /backup/auto é disparado duas vezes ao montar o Dashboard (StrictMode), gerando linha duplicada de backup 'automatico' na tela Backup", "affected_selectors": ["[data-testid=\"page-dashboard\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Atendimentos / Agendamentos / Relatórios (filtros de data)", "issues": ["Filtros usam input type=date (date picker nativo do navegador) em vez do componente de calendário shadcn — inconsistente com o tema escuro"]},
+      {"screen": "Comprovante (recibo-dialog)", "issues": ["Sem problema funcional; apenas nota: não há linha de observações nem CNPJ/endereço quando as configurações estão vazias (comportamento esperado, mas o cupom fica com pouca identificação fiscal)"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration2.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_iteration2.xml",
+    "/app/test_reports/pytest/pytest_iteration1_rerun.xml"
+  ],
+  "action_items": [
+    "Evitar duplicidade do backup automático: guard de execução única no Dashboard (useRef) e/ou índice/verificação atômica no POST /api/backup/auto; remover as linhas duplicadas existentes se desejar limpar a lista.",
+    "Decidir se /api/relatorios/* deve exigir require_admin (hoje atendente acessa via API mesmo com UI escondida).",
+    "Opcional: trocar os inputs type=date por componente de calendário shadcn para consistência visual."
+  ],
+  "critical_code_review_comments": [
+    "server.py já passa de 1060 linhas; dashboard(), get_relatorio_pdf() e backup são candidatos naturais a routers/serviços separados.",
+    "backup_auto() lê configurações e checa 'ja_hoje' em conexões separadas antes de gravar — padrão check-then-act sem transação; sob chamadas concorrentes duplica registros (reproduzido).",
+    "get_relatorio_pdf() trata logo inválida com try/except e continua sem imagem — bom; validei base64 corrompido, URL http e valor vazio (todos 200).",
+    "Configuracoes.enviarLogo() limita 300KB e limpa e.target.value (permite reenviar o mesmo arquivo) — implementação correta; o data-uri gravado no SQLite pode crescer o banco, considerar aviso de tamanho ideal.",
+    "Atendimentos.jsx monta o recibo com o estado local do carrinho e o total vindo da API — os valores conferiram, mas se o backend recalcular diferente do front o recibo mostraria o subtotal do front; considerar montar o recibo 100% da resposta da API."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration2.py"
+  ],
+  "success_rate": {"backend": "100% (46/46 casos: 20 novos incl. 1 xfail conhecido + 26 de regressão)", "frontend": "100% dos fluxos das 4 features + regressão"},
+  "seed_data_creation": "Testes criaram/removeram clientes TEST_ (aniversariante +3 dias e sem nascimento). Testes de UI criaram 2 atendimentos reais (Bruno Costa R$29,00 PIX e Diego Martins R$63,00 Cartão de Débito) e 1 backup automático. Removi manualmente a linha de backup 'automatico' do dia antes do teste de UI para poder validar o toast. Estado final conforme pedido: senha admin=123456, backup_automatico='1', logo original (emblema dourado, 71334 chars) restaurada. Obs.: existem 6 clientes TEST_ residuais da iteração 1.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin/123456 e atendente/123456 (ambos validados com login 200 ao final)",
+  "context_for_next_testing_agent": "Suites: /app/backend/tests/backend_test.py (26, iteração 1) e /app/backend/tests/test_iteration2.py (20, features logo/aniversariantes/backup auto/PDF + regressão). IMPORTANTE: rode com -n 0 — o pytest.ini usa -n 2 --dist loadscope e as classes compartilham estado global (caixa único aberto e chave 'logo'/'backup_automatico' em configuracoes), o que causou falha flaky em TestCaixa::test_caixa_flow (diferença -45 por atendimento criado por outro worker no mesmo caixa). Para revalidar o toast de backup automático na UI é preciso apagar antes a linha de backup tipo 'automatico' do dia em /app/backend/data/barberpro.db. Login usa 'usuario'/'senha' com JWT em localStorage['bp_token']; banco é SQLite.",
+  "rca_of_the_issue": "Duplicidade do backup automático: Dashboard.useEffect executa POST /api/backup/auto e o React StrictMode invoca o efeito duas vezes; backup_auto() consulta 'existe backup automatico hoje?' e só depois insere, sem transação/lock, então as duas requisições passam pela checagem e inserem dois registros com o mesmo nome de arquivo (mesmo segundo). Reprodução: abrir o Dashboard com backup_automatico='1' e nenhum backup automático no dia -> tabela backups ganha 2 linhas idênticas (verificado: ids 6 e 7). Mitigação: guard idempotente no backend (UNIQUE (tipo, date(data)) ou INSERT condicional dentro de uma transação BEGIN IMMEDIATE) e useRef no Dashboard para disparar uma única vez."
+}

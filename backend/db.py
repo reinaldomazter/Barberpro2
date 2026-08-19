@@ -165,6 +165,8 @@ CREATE TABLE IF NOT EXISTS logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   usuario TEXT, acao TEXT NOT NULL, detalhe TEXT, data TEXT NOT NULL
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_backup_automatico_dia
+  ON backups(tipo, date(data)) WHERE tipo='automatico';
 """
 
 DEFAULT_CONFIG = {
