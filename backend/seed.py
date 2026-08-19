@@ -30,20 +30,26 @@ def seed_demo():
         conn.execute("""INSERT INTO produtos (nome, categoria, preco, custo, estoque, estoque_minimo, status, criado_em)
                         VALUES (?,?,?,?,?,?, 'Ativo', ?)""", p + (now_iso(),))
     # pacotes
-    conn.execute("INSERT INTO pacotes (nome, valor, validade_dias, status, criado_em) VALUES (?,?,?, 'Ativo', ?)",
-                 ("Pacote Corte Mensal", 100, 30, now_iso()))
-    conn.execute("INSERT INTO pacote_itens (pacote_id, servico_id, quantidade) VALUES (1, 1, 4)")
-    conn.execute("INSERT INTO pacotes (nome, valor, validade_dias, status, criado_em) VALUES (?,?,?, 'Ativo', ?)",
-                 ("Pacote Corte + Barba", 180, 30, now_iso()))
-    conn.execute("INSERT INTO pacote_itens (pacote_id, servico_id, quantidade) VALUES (2, 1, 4)")
-    conn.execute("INSERT INTO pacote_itens (pacote_id, servico_id, quantidade) VALUES (2, 2, 4)")
+    corte = conn.execute("SELECT id FROM servicos WHERE nome='Corte masculino'").fetchone()["id"]
+    barba = conn.execute("SELECT id FROM servicos WHERE nome='Barba'").fetchone()["id"]
+    p1 = conn.execute("INSERT INTO pacotes (nome, valor, validade_dias, status, criado_em) VALUES (?,?,?, 'Ativo', ?)",
+                      ("Pacote Corte Mensal", 100, 30, now_iso())).lastrowid
+    conn.execute("INSERT INTO pacote_itens (pacote_id, servico_id, quantidade) VALUES (?,?,4)", (p1, corte))
+    p2 = conn.execute("INSERT INTO pacotes (nome, valor, validade_dias, status, criado_em) VALUES (?,?,?, 'Ativo', ?)",
+                      ("Pacote Corte + Barba", 180, 30, now_iso())).lastrowid
+    conn.execute("INSERT INTO pacote_itens (pacote_id, servico_id, quantidade) VALUES (?,?,4)", (p2, corte))
+    conn.execute("INSERT INTO pacote_itens (pacote_id, servico_id, quantidade) VALUES (?,?,4)", (p2, barba))
     # agendamentos demo
+    cli_ids = [r["id"] for r in conn.execute("SELECT id FROM clientes ORDER BY id")]
+    barb_ids = [r["id"] for r in conn.execute("SELECT id FROM barbeiros ORDER BY id")]
+    serv_ids = [r["id"] for r in conn.execute("SELECT id FROM servicos ORDER BY id")]
     hoje = datetime.now()
     horas = ["09:00", "10:00", "11:00", "14:00", "15:30"]
     for i, h in enumerate(horas):
         d = (hoje + timedelta(days=i % 3)).strftime("%Y-%m-%d")
         conn.execute("""INSERT INTO agendamentos (cliente_id, barbeiro_id, servico_id, data, hora, status, criado_em)
                         VALUES (?,?,?,?,?,?,?)""",
-                     ((i % 4) + 1, (i % 3) + 1, (i % 4) + 1, d, h, "Agendado" if i % 2 else "Confirmado", now_iso()))
+                     (cli_ids[i % len(cli_ids)], barb_ids[i % len(barb_ids)], serv_ids[i % 4], d, h,
+                      "Agendado" if i % 2 else "Confirmado", now_iso()))
     conn.commit()
     conn.close()

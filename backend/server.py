@@ -947,6 +947,26 @@ def restaurar(body: dict, user=Depends(require_admin)):
     return {"ok": True, "backup_seguranca": str(seguranca)}
 
 
+@api.post("/sistema/limpar-dados")
+def limpar_dados(body: dict = {}, user=Depends(require_admin)):
+    """Apaga dados de demonstração/operação (mantém usuários e configurações). Faz backup antes."""
+    if body.get("confirmacao") != "LIMPAR":
+        raise HTTPException(status_code=400, detail="Confirmação inválida")
+    backup = do_backup({"tipo": "pre_limpeza"}, user)
+    ordem = ["comissoes", "pagamentos", "itens_atendimento", "atendimentos", "agendamentos",
+             "movimentacoes_caixa", "caixa", "movimentacoes_estoque", "clientes_pacotes_saldo",
+             "clientes_pacotes", "despesas"]
+    if body.get("apagar_cadastros"):
+        ordem += ["pacote_itens", "pacotes", "produtos", "servicos", "clientes", "barbeiros"]
+    conn = get_conn()
+    for t in ordem:
+        conn.execute(f"DELETE FROM {t}")
+    log(conn, user["usuario"], "limpar_dados", f"cadastros={bool(body.get('apagar_cadastros'))}")
+    conn.commit()
+    conn.close()
+    return {"ok": True, "backup": backup["arquivo"], "tabelas": len(ordem)}
+
+
 @api.get("/logs")
 def list_logs(user=Depends(require_admin)):
     conn = get_conn()

@@ -27,7 +27,7 @@ depois como app desktop Windows (Electron).
 - Despesas por categoria
 - Relatórios (financeiro, barbeiros, clientes, serviços, produtos) com filtro de período, impressão, export CSV e **export PDF** (cabeçalho com nome/CNPJ/telefone/endereço e logo da barbearia; PDF completo ou por seção)
 - Backup: gerar (`backup_DD-MM-AAAA_HH-MM-SS.db`), restaurar com confirmação e cópia de segurança prévia, pasta de destino, flag de automático
-- Configurações da barbearia + usuários + senhas
+- Configurações da barbearia + usuários + senhas + **limpar dados de demonstração** (backup automático antes, confirmação digitando LIMPAR, opção de apagar também os cadastros fictícios)
 - Dados de demonstração (3 barbeiros, 6 serviços, 4 clientes, 6 produtos, 2 pacotes, agendamentos)
 
 ## Testes

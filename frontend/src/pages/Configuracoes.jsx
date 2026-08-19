@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Save, Plus, Trash2, KeyRound } from "lucide-react";
+import { Save, Plus, Trash2, KeyRound, Eraser } from "lucide-react";
 import { api, apiError } from "@/api";
 import { PageHeader } from "@/components/Layout";
 import { DataTable, Field } from "@/components/CrudPage";
@@ -28,6 +28,10 @@ export default function Configuracoes() {
   const [editing, setEditing] = useState(null);
   const [pwdOpen, setPwdOpen] = useState(false);
   const [pwd, setPwd] = useState({});
+  const [limparOpen, setLimparOpen] = useState(false);
+  const [confirmacao, setConfirmacao] = useState("");
+  const [apagarCadastros, setApagarCadastros] = useState(false);
+  const [limpando, setLimpando] = useState(false);
 
   const load = () => {
     api.get("/configuracoes").then(({ data }) => setConf(data));
@@ -61,11 +65,31 @@ export default function Configuracoes() {
     } catch (e) { toast.error(apiError(e)); }
   };
 
+  const limparDados = async () => {
+    setLimpando(true);
+    try {
+      const { data } = await api.post("/sistema/limpar-dados", {
+        confirmacao: confirmacao.trim().toUpperCase(),
+        apagar_cadastros: apagarCadastros,
+      });
+      toast.success(`Dados apagados. Backup de segurança: ${data.backup}`);
+      setLimparOpen(false);
+      setConfirmacao("");
+      setApagarCadastros(false);
+    } catch (e) { toast.error(apiError(e)); }
+    finally { setLimpando(false); }
+  };
+
   return (
     <div data-testid="page-configuracoes">
       <PageHeader title="Configurações" subtitle="Dados da barbearia, usuários e senhas">
         <Button data-testid="alterar-senha" variant="outline" className="border-zinc-700" onClick={() => setPwdOpen(true)}>
           <KeyRound className="h-4 w-4 mr-1" /> Alterar minha senha
+        </Button>
+        <Button data-testid="limpar-demonstracao" variant="outline"
+          className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+          onClick={() => setLimparOpen(true)}>
+          <Eraser className="h-4 w-4 mr-1" /> Limpar dados de demonstração
         </Button>
         <Button data-testid="salvar-config" onClick={salvar} className="bg-[#D4AF37] text-black hover:bg-[#B5952F] font-semibold">
           <Save className="h-4 w-4 mr-1" /> Salvar
@@ -123,14 +147,39 @@ export default function Configuracoes() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={pwdOpen} onOpenChange={setPwdOpen}>
-        <DialogContent className="bg-[#18181B] border-zinc-800" data-testid="senha-dialog">
+      <Dialog open={pwdOpen} onOpenChange={setPwdOpen}>        <DialogContent className="bg-[#18181B] border-zinc-800" data-testid="senha-dialog">
           <DialogHeader><DialogTitle>Alterar minha senha</DialogTitle></DialogHeader>
           <Field field={{ name: "atual", label: "Senha atual", type: "password" }} value={pwd.atual} onChange={(v) => setPwd({ ...pwd, atual: v })} />
           <Field field={{ name: "nova", label: "Nova senha", type: "password" }} value={pwd.nova} onChange={(v) => setPwd({ ...pwd, nova: v })} />
           <DialogFooter>
             <Button variant="outline" className="border-zinc-700" onClick={() => setPwdOpen(false)}>Cancelar</Button>
             <Button data-testid="confirmar-senha" onClick={trocarSenha} className="bg-[#D4AF37] text-black hover:bg-[#B5952F] font-semibold">Alterar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={limparOpen} onOpenChange={setLimparOpen}>
+        <DialogContent className="bg-[#18181B] border-zinc-800" data-testid="limpar-dialog">
+          <DialogHeader><DialogTitle className="text-red-400">Limpar dados de demonstração</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p>Serão apagados: atendimentos, pagamentos, comissões, agendamentos, caixas e suas
+              movimentações, movimentações de estoque, despesas e pacotes contratados por clientes.</p>
+            <p className="text-muted-foreground">Usuários e configurações da barbearia são preservados.
+              Um <strong>backup automático</strong> é gerado antes da limpeza.</p>
+            <label className="flex items-start gap-2 cursor-pointer border border-zinc-800 rounded-md p-3">
+              <input type="checkbox" data-testid="apagar-cadastros" className="mt-1"
+                checked={apagarCadastros} onChange={(e) => setApagarCadastros(e.target.checked)} />
+              <span>Apagar também os <strong>cadastros fictícios</strong> (clientes, barbeiros, serviços, produtos e pacotes)</span>
+            </label>
+            <Field field={{ name: "confirmacao", label: 'Digite LIMPAR para confirmar' }}
+              value={confirmacao} onChange={setConfirmacao} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="border-zinc-700" onClick={() => setLimparOpen(false)}>Cancelar</Button>
+            <Button data-testid="confirmar-limpeza" disabled={limpando || confirmacao.trim().toUpperCase() !== "LIMPAR"}
+              onClick={limparDados} className="bg-red-600 hover:bg-red-700 font-semibold">
+              {limpando ? "Limpando…" : "Apagar dados"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
