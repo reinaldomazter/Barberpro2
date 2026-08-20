@@ -847,7 +847,7 @@ def get_relatorio_pdf(tipo: str, inicio: str, fim: str, secao: Optional[str] = N
         logo_bytes = Path(logo_path).read_bytes()
     if logo_bytes:
         try:
-            from PIL import Image as PILImage
+            from PIL import Image as PILImage  # dependência local fixa, sem entrada do usuário
             im = PILImage.open(io.BytesIO(logo_bytes))
             im.load()
             buf_logo = io.BytesIO()
@@ -945,16 +945,19 @@ def list_backups(user=Depends(require_admin)):
 
 
 @api.post("/backup")
-def do_backup(body: dict = {}, user=Depends(require_admin)):
+def do_backup(body: Optional[dict] = None, user=Depends(require_admin)):
+    body = body or {}
     pasta = Path(body.get("pasta") or str(BACKUP_DIR))
     pasta.mkdir(parents=True, exist_ok=True)
     nome = "backup_" + datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".db"
     destino = pasta / nome
     conn = get_conn()
-    dest_conn = __import__("sqlite3").connect(str(destino))
-    with dest_conn:
-        conn.backup(dest_conn)
-    dest_conn.close()
+    dest_conn = sqlite3.connect(str(destino))
+    try:
+        with dest_conn:
+            conn.backup(dest_conn)
+    finally:
+        dest_conn.close()
     conn.execute("INSERT INTO backups (arquivo, caminho, tamanho, tipo, data) VALUES (?,?,?,?,?)",
                  (nome, str(destino), destino.stat().st_size, body.get("tipo", "manual"), now_iso()))
     log(conn, user["usuario"], "backup", nome)
@@ -979,8 +982,9 @@ def restaurar(body: dict, user=Depends(require_admin)):
 
 
 @api.post("/sistema/limpar-dados")
-def limpar_dados(body: dict = {}, user=Depends(require_admin)):
+def limpar_dados(body: Optional[dict] = None, user=Depends(require_admin)):
     """Apaga dados de demonstração/operação (mantém usuários e configurações). Faz backup antes."""
+    body = body or {}
     if body.get("confirmacao") != "LIMPAR":
         raise HTTPException(status_code=400, detail="Confirmação inválida")
     backup = do_backup({"tipo": "pre_limpeza"}, user)
@@ -1021,11 +1025,11 @@ def backup_auto(user=Depends(get_current_user)):
     pasta = conf.get("backup_pasta") or str(BACKUP_DIR)
     try:
         r = do_backup({"pasta": pasta, "tipo": "automatico"}, {"usuario": user["usuario"], "perfil": "admin"})
+        return {"criado": True, **r}
     except sqlite3.IntegrityError:
         return {"criado": False, "motivo": "ja_realizado_hoje"}
     except Exception as e:
         return {"criado": False, "motivo": "erro", "detalhe": str(e)}
-    return {"criado": True, **r}
 
 
 @api.get("/logs")

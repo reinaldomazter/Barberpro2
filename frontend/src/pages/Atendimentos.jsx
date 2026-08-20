@@ -151,12 +151,18 @@ export default function Atendimentos() {
         <tr><td>Pagamento</td><td class="r">${r.forma}</td></tr>
       </table>
       <p class="foot">Obrigado pela preferência!<br>BarberPro — sistema de gestão</p>
-      <script>window.onload=function(){window.print();}<\/script>
       </body></html>`;
-    const w = window.open("", "_blank", "width=420,height=680");
-    if (!w) return toast.error("Permita janelas pop-up para imprimir o comprovante");
-    w.document.write(html);
-    w.document.close();
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+    const w = window.open(url, "_blank", "width=420,height=680");
+    if (!w) {
+      URL.revokeObjectURL(url);
+      return toast.error("Permita janelas pop-up para imprimir o comprovante");
+    }
+    w.addEventListener("load", () => {
+      w.focus();
+      w.print();
+      URL.revokeObjectURL(url);
+    });
   };
 
   return (

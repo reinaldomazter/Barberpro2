@@ -157,7 +157,7 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie data={d.top_servicos} dataKey="qtd" nameKey="nome" outerRadius={80} label>
-                  {d.top_servicos.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  {d.top_servicos.map((s) => <Cell key={s.nome} fill={COLORS[d.top_servicos.indexOf(s) % COLORS.length]} />)}
                 </Pie>
                 <Tooltip contentStyle={{ background: "#18181B", border: "1px solid #27272A" }} />
               </PieChart>
